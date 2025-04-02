@@ -195,7 +195,7 @@ class Analog1View extends WatchUi.WatchFace {
         } else {
             angle = 45;
         }
-        System.println(Lang.format("$1$ $2$ $3$ $4$", [hour, minute, angle, avoid]));
+        // System.println(Lang.format("$1$ $2$ $3$ $4$", [hour, minute, angle, avoid]));
 
         return angle;
     }
@@ -285,8 +285,6 @@ class Analog1View extends WatchUi.WatchFace {
             drawBattery(bufDc, q);
         }
 
-        dc.drawBitmap(0, 0, offscreenBuffer);
-
         // // var w = dc.getWidth()/2;
         // // var h = dc.getHeight()/2;
 
@@ -323,18 +321,23 @@ class Analog1View extends WatchUi.WatchFace {
         // var q = selectQuadrantAngle(hour, minute, quadrant);
         // drawBattery(dc, q);
 
-        if(_partialUpdatesAllowed) {
-            System.println("partial on");
-            if (!isSleeping) {
-                // onPartialUpdate(dc);
-            }
-        } else {
-            // display(dc);
-            // Call the parent onUpdate function to redraw the layout
-            // View.onUpdate(dc);
-            // System.println("partial off");
-            // drawMarks0(dc, -1);//clockTime.sec);
-        }
+        onPartialUpdate(dc);
+
+        // if(_partialUpdatesAllowed) {
+        //     // System.println(format("partial on, sleeping $1$", [isSleeping]));
+        //     // if (!isSleeping) {
+        //     //     onPartialUpdate(dc);
+        //     // }
+        //     onPartialUpdate(dc);
+        // } else {
+        //     dc.drawBitmap(0, 0, offscreenBuffer);
+
+        //     // display(dc);
+        //     // Call the parent onUpdate function to redraw the layout
+        //     // View.onUpdate(dc);
+        //     // System.println("partial off");
+        //     // drawMarks0(dc, -1);//clockTime.sec);
+        // }
     }
 
     public function onPartialUpdate(dc as Dc) as Void {
@@ -353,7 +356,7 @@ class Analog1View extends WatchUi.WatchFace {
 
         var clockTime = System.getClockTime();
         var second = clockTime.sec;
-        System.println(format("second $1$", [second]));
+        // System.println(format("second $1$", [second]));
         // drawMarks0(dc, clockTime.sec);
 
         // var hour = clockTime.hour;
@@ -409,7 +412,7 @@ class Analog1View extends WatchUi.WatchFace {
         //
         previousDrawnMinute = -1;
 
-        System.println("sleep exit");
+        // System.println("sleep exit");
     }
 
     // Terminate any active timers and prepare for slow updates.
@@ -420,7 +423,7 @@ class Analog1View extends WatchUi.WatchFace {
         //
         previousDrawnMinute = -1;
 
-        System.println("sleep enter");
+        // System.println("sleep enter");
     }
 }
 
