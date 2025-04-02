@@ -10,8 +10,31 @@ class Analog1View extends WatchUi.WatchFace {
     private var isSleeping = false as Boolean;
     private var _partialUpdatesAllowed as Boolean;
     private const FRAC = Math.PI / 30.0;
+    private var previousDrawnMinute as Number = -1;
+    private var screenShape as Number;
+    private var screenCenter as Array<Number>;
+    private var clockRadius as Number;
+    private var offscreenBuffer as BufferedBitmap;
 
-    private function drawMarks0(dc as Dc, sec) {
+    public function initialize() {
+        WatchFace.initialize();
+        _partialUpdatesAllowed = (WatchUi.WatchFace has :onPartialUpdate);
+
+        var deviceSettings = System.getDeviceSettings();
+        screenShape = deviceSettings.screenShape;
+        var width = deviceSettings.screenWidth;
+        var height = deviceSettings.screenHeight;
+        screenCenter = [width/2, height/2] as Array<Number>;
+
+        // Allow for non-circular/square faces.
+        //
+        clockRadius = screenCenter[0] <screenCenter[1] ? screenCenter[0] : screenCenter[1];
+
+        var options = {:width=>width, :height=>height};
+        offscreenBuffer = new Graphics.BufferedBitmap(options);
+    }
+
+    private function drawMarks0(dc as Dc) as Void { //}, sec) {
         var w = dc.getWidth()/2;
         var h = dc.getHeight()/2;
         var color = Graphics.COLOR_WHITE;
@@ -47,38 +70,38 @@ class Analog1View extends WatchUi.WatchFace {
         }
     }
 
-    // Draw the marks around the edge of the screen.
-    //
-    private function drawMarks(dc as Dc, sec) {
-        var w = dc.getWidth()/2;
-        var h = dc.getHeight()/2;
-        // var frac = Math.PI / 30.0;
-        var color = Graphics.COLOR_WHITE;
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        for (var i=0; i<60; i++) {
-            var angle = FRAC*(60-i);
-            var sin = Math.sin(angle);
-            var cos = Math.cos(angle);
-            if (i%5==0) {
-                if (i>sec) {
-                    dc.setColor(Graphics.COLOR_BLUE, Graphics.COLOR_TRANSPARENT);
-                }
-                dc.setPenWidth(5);
-                dc.drawLine(w-sin*(w-10), h-cos*(h-10), w-sin*w, h-cos*h);
-                if (i>sec) {
-                    dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-                }
-            } else {
-                dc.setPenWidth(1);
-                dc.drawLine(w-sin*(w-8), h-cos*(h-8), w-sin*w, h-cos*h);
-            }
+    // // Draw the marks around the edge of the screen.
+    // //
+    // private function drawMarks(dc as Dc, sec) {
+    //     var w = dc.getWidth()/2;
+    //     var h = dc.getHeight()/2;
+    //     // var frac = Math.PI / 30.0;
+    //     var color = Graphics.COLOR_WHITE;
+    //     dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+    //     for (var i=0; i<60; i++) {
+    //         var angle = FRAC*(60-i);
+    //         var sin = Math.sin(angle);
+    //         var cos = Math.cos(angle);
+    //         if (i%5==0) {
+    //             if (i>sec) {
+    //                 dc.setColor(Graphics.COLOR_BLUE, Graphics.COLOR_TRANSPARENT);
+    //             }
+    //             dc.setPenWidth(5);
+    //             dc.drawLine(w-sin*(w-10), h-cos*(h-10), w-sin*w, h-cos*h);
+    //             if (i>sec) {
+    //                 dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+    //             }
+    //         } else {
+    //             dc.setPenWidth(1);
+    //             dc.drawLine(w-sin*(w-8), h-cos*(h-8), w-sin*w, h-cos*h);
+    //         }
 
-            if (i==sec) {
-                color = Graphics.COLOR_DK_BLUE;
-                dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-            }
-        }
-    }
+    //         if (i==sec) {
+    //             color = Graphics.COLOR_DK_BLUE;
+    //             dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+    //         }
+    //     }
+    // }
 
     private function drawBattery(dc as Dc, angleopp) as Void {
         var WIDTH = 32;
@@ -115,11 +138,6 @@ class Analog1View extends WatchUi.WatchFace {
         dc.fillRectangle(x+1, y-HEIGHT/2+2, (WIDTH-4)*battery/100.0, (HEIGHT-4));
     }
 
-    function initialize() {
-        WatchFace.initialize();
-        _partialUpdatesAllowed = (WatchUi.WatchFace has :onPartialUpdate);
-    }
-
     // Load your resources here
     function onLayout(dc as Dc) as Void {
         setLayout(Rez.Layouts.WatchFace(dc));
@@ -129,6 +147,11 @@ class Analog1View extends WatchUi.WatchFace {
     // the state of this View and prepare it to be shown. This includes
     // loading resources into memory.
     function onShow() as Void {
+        // Assuming onShow() is triggered after any settings change, force the watch face
+        // to be re-drawn in the next call to onUpdate(). This is to immediately react to
+        // changes of the watch settings or a possible change of the DND setting.
+        //
+        previousDrawnMinute = -1;
     }
 
     // private function display(dc as Dc) as Void {
@@ -237,42 +260,68 @@ class Analog1View extends WatchUi.WatchFace {
 
     // Update the view
     function onUpdate(dc as Dc) as Void {
+        dc.clearClip();
 
-        // var w = dc.getWidth()/2;
-        // var h = dc.getHeight()/2;
-
-        // var td = dc.getTextDimensions(timeString, Graphics.FONT_LARGE);
-        // dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_TRANSPARENT);
-        // dc.drawText(w, h-td[1]/2, Graphics.FONT_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // var name = "Jason B";
-        // // var td2 = dc.getTextDimensions(name, Graphics.FONT_LARGE);
-        // dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-        // dc.drawText(w, h+td[1], Graphics.FONT_LARGE, name, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // drawMarks0(dc, -1);//clockTime.sec);
-
-        dc.setColor(Graphics.COLOR_TRANSPARENT, Graphics.COLOR_BLACK);
-        dc.clear();
-
-        // // System.println("partial");
-        // // display(dc);
-        // // Call the parent onUpdate function to redraw the layout
-        // // View.onUpdate(dc);
         var clockTime = System.getClockTime();
-        drawMarks0(dc, clockTime.sec);
-
         var hour = clockTime.hour;
         var minute = clockTime.min;
+        var second = clockTime.sec;
         if (hour>12) {
             hour = hour - 12;
         }
         hour = hour + minute/5.0/12.0;
 
-        var quadrant = selectQuadrantAngle(hour, minute, -1);
-        drawHands(dc, clockTime, quadrant);
-        var q = selectQuadrantAngle(hour, minute, quadrant);
-        drawBattery(dc, q);
+        if (previousDrawnMinute!=minute) {
+            previousDrawnMinute = minute;
+
+            var bufDc = offscreenBuffer.getDc();
+            bufDc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            bufDc.clear();
+
+            drawMarks0(bufDc);
+            var quadrant = selectQuadrantAngle(hour, minute, -1);
+            drawHands(bufDc, clockTime, quadrant);
+            var q = selectQuadrantAngle(hour, minute, quadrant);
+            drawBattery(bufDc, q);
+        }
+
+        dc.drawBitmap(0, 0, offscreenBuffer);
+
+        // // var w = dc.getWidth()/2;
+        // // var h = dc.getHeight()/2;
+
+        // // var td = dc.getTextDimensions(timeString, Graphics.FONT_LARGE);
+        // // dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_TRANSPARENT);
+        // // dc.drawText(w, h-td[1]/2, Graphics.FONT_LARGE, timeString, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // // var name = "Jason B";
+        // // // var td2 = dc.getTextDimensions(name, Graphics.FONT_LARGE);
+        // // dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
+        // // dc.drawText(w, h+td[1], Graphics.FONT_LARGE, name, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // // drawMarks0(dc, -1);//clockTime.sec);
+
+        // dc.setColor(Graphics.COLOR_TRANSPARENT, Graphics.COLOR_BLACK);
+        // dc.clear();
+
+        // // // System.println("partial");
+        // // // display(dc);
+        // // // Call the parent onUpdate function to redraw the layout
+        // // // View.onUpdate(dc);
+        // // var clockTime = System.getClockTime();
+        // drawMarks0(dc);
+
+        // // var hour = clockTime.hour;
+        // // var minute = clockTime.min;
+        // // if (hour>12) {
+        // //     hour = hour - 12;
+        // // }
+        // // hour = hour + minute/5.0/12.0;
+
+        // var quadrant = selectQuadrantAngle(hour, minute, -1);
+        // drawHands(dc, clockTime, quadrant);
+        // var q = selectQuadrantAngle(hour, minute, quadrant);
+        // drawBattery(dc, q);
 
         if(_partialUpdatesAllowed) {
             System.println("partial on");
@@ -299,15 +348,20 @@ class Analog1View extends WatchUi.WatchFace {
         // display(dc);
         // Call the parent onUpdate function to redraw the layout
         // View.onUpdate(dc);
+
+        dc.drawBitmap(0, 0, offscreenBuffer);
+
         var clockTime = System.getClockTime();
+        var second = clockTime.sec;
+        System.println(format("second $1$", [second]));
         // drawMarks0(dc, clockTime.sec);
 
-        var hour = clockTime.hour;
-        var minute = clockTime.min;
-        if (hour>12) {
-            hour = hour - 12;
-        }
-        hour = hour + minute/5.0/12.0;
+        // var hour = clockTime.hour;
+        // var minute = clockTime.min;
+        // if (hour>12) {
+        //     hour = hour - 12;
+        // }
+        // hour = hour + minute/5.0/12.0;
 
         // var quadrant = selectQuadrantAngle(hour, minute, -1);
         // drawHands(dc, clockTime, quadrant);
@@ -317,17 +371,28 @@ class Analog1View extends WatchUi.WatchFace {
         var w = dc.getWidth()/2;
         var h = dc.getHeight()/2;
 
-        // var clockTime = System.getClockTime();
-        var angles = FRAC*(60.0-clockTime.sec);
-        var sin = Math.sin(angles);
-        var cos = Math.cos(angles);
-        dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_TRANSPARENT);
-        var p0 = sin*(w-12);
-        var p1 = cos*(h-12);
-        // dc.setClip(w-p0-6, h-p1-6, 12, 12);
-        dc.fillCircle(w-p0, h-p1, 2);
-        // dc.fillRectangle(w-p0-6, h-p1-6, 12, 12);
-        // dc.drawPoint(w-p0, h-p1);
+        var arcStart = second + 15;
+        if (arcStart>60) {
+            arcStart -= 60;
+        }
+        arcStart = 30 - arcStart;
+        dc.setPenWidth(12);
+        dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_RED);
+        // dc.drawArc(w, h, 100, Graphics.ARC_COUNTER_CLOCKWISE, 90, 135);
+        // dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_YELLOW);
+        dc.drawArc(w, h, w-7, Graphics.ARC_CLOCKWISE, arcStart*6+3, arcStart*6-3);
+
+        // // var clockTime = System.getClockTime();
+        // var angles = FRAC*(60.0-clockTime.sec);
+        // var sin = Math.sin(angles);
+        // var cos = Math.cos(angles);
+        // dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_TRANSPARENT);
+        // var p0 = sin*(w-12);
+        // var p1 = cos*(h-12);
+        // // dc.setClip(w-p0-6, h-p1-6, 12, 12);
+        // dc.fillCircle(w-p0, h-p1, 2);
+        // // dc.fillRectangle(w-p0-6, h-p1-6, 12, 12);
+        // // dc.drawPoint(w-p0, h-p1);
     }
 
     // Called when this View is removed from the screen. Save the
@@ -339,12 +404,22 @@ class Analog1View extends WatchUi.WatchFace {
     // The user has just looked at their watch. Timers and animations may be started here.
     function onExitSleep() as Void {
         isSleeping = false;
+
+        // Force the watchface to be re-drawn.
+        //
+        previousDrawnMinute = -1;
+
         System.println("sleep exit");
     }
 
     // Terminate any active timers and prepare for slow updates.
     function onEnterSleep() as Void {
         isSleeping = true;
+
+        // Force the watchface to be re-drawn.
+        //
+        previousDrawnMinute = -1;
+
         System.println("sleep enter");
     }
 }
