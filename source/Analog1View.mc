@@ -1,3 +1,5 @@
+import Toybox.Activity;
+import Toybox.ActivityMonitor;
 import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Time.Gregorian;
@@ -114,6 +116,16 @@ class Analog1View extends WatchUi.WatchFace {
         var w = screenCenter[0];
         var h = screenCenter[1];
 
+        // Get the "steps/stepGoal" string.
+        // (Not enough room to include stepGoal.)
+        //
+        var steps = ActivityMonitor.getInfo().steps;
+        if (steps==null) {
+            steps = "-";
+        }
+        var ss = Lang.format("$1$", [steps]);
+        var textDims = dc.getTextDimensions(ss, Graphics.FONT_XTINY);
+
         var battery = System.getSystemStats().battery;
         var color;
         if (battery>=20) {
@@ -127,7 +139,7 @@ class Analog1View extends WatchUi.WatchFace {
         var sin = Math.sin(FRAC*angleopp);
         var cos = Math.cos(FRAC*angleopp);
         var x = w+sin*(radius*0.5) - WIDTH/2;
-        var y = h-cos*(radius*0.5);
+        var y = h-cos*(radius*0.5) - textDims[1]/2;
 
         // Draw the outline of the battery.
         //
@@ -140,6 +152,11 @@ class Analog1View extends WatchUi.WatchFace {
         //
         dc.setColor(color, color);
         dc.fillRectangle(x+1, y-HEIGHT/2+2, (WIDTH-4)*battery/100.0, (HEIGHT-4));
+
+        // Draw the steps.
+        //
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x+WIDTH/2, y+HEIGHT, Graphics.FONT_XTINY, ss, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // // Load your resources here
