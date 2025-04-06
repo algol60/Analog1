@@ -10,6 +10,8 @@ class Analog1View extends WatchUi.WatchFace {
     // Pretend there are 60 degrees in a circle.
     //
     private const FRAC = Math.PI / 30.0;
+    private const HDELTA = 1.5;
+    private const MDELTA = 8;
 
     private var isSleeping = false as Boolean;
     private var canPartialUpdate as Boolean;
@@ -47,27 +49,28 @@ class Analog1View extends WatchUi.WatchFace {
         var h = screenCenter[1];
         var color = Graphics.COLOR_WHITE;
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        for (var i=0; i<16; i++) {
+        for (var i=0; i<15; i++) {
             var angle = FRAC*(60-i);
             var sin = Math.sin(angle);
             var cos = Math.cos(angle);
             if (i%5==0) {
-                dc.setPenWidth(i==0 ? 12 : 6);
+                dc.setPenWidth(i==0 ? 15 : 7);
                 var p0 = sin*(radius-10);
                 var p1 = cos*(radius-10);
                 dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
-                dc.setPenWidth(6);
+                dc.setPenWidth(7);
                 dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
-                dc.drawLine(w-p0, h+p1, w-sin*w, h+cos*h);
-                dc.drawLine(w+p0, h-p1, w+sin*w, h-cos*h);
+
+                dc.drawLine(w-p1, h+p0, w-cos*w, h+sin*h);
+                dc.drawLine(w+p1, h-p0, w+cos*w, h-sin*h);
             } else {
                 dc.setPenWidth(1);
                 var p0 = sin*(radius-8);
                 var p1 = cos*(radius-8);
                 dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
                 dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
-                dc.drawLine(w-p0, h+p1, w-sin*w, h+cos*h);
-                dc.drawLine(w+p0, h-p1, w+sin*w, h-cos*h);
+                dc.drawLine(w-p1, h+p0, w-cos*w, h+sin*h);
+                dc.drawLine(w+p1, h-p0, w+cos*w, h-sin*h);
             }
         }
     }
@@ -155,25 +158,36 @@ class Analog1View extends WatchUi.WatchFace {
         previousDrawnMinute = -1;
     }
 
-    // Select a quadrant that doesn't have hands in it.
-    // Avoid an existing quadrant.
+    // Find quadrants that don't have the hour and minute hand in them.
+    // There are two hands (hour and minute), so there are always either two or three
+    // free quadrants.
+    // The result will be that quadrants 0 and 1 will be the first two free quadrants.
+    // Quadrant 3 may or may not be valid depending on where the hands are,
+    // but we don't use it anyway.
     //
-    // TODO Find the free quadrants in one go and return an array,
-    // so the comparisons don't have to be dome twice.
-    //
-    private function selectQuadrantAngle(hour, minute, avoid) as Integer {
-        var angle;
-        if ((hour<2 or hour>4) and (minute<10 or minute>20) and avoid!=15) {
-            angle = 15;
-        } else if ((1<hour and hour<11) and (5<minute and minute<55) and avoid!=0) {
-            angle = 0;
-        } else if ((hour<5 or hour>7) and (minute<25 or minute>35) and avoid!=30) {
-            angle = 30;
-        } else {
-            angle = 45;
+    private function getFreeQuadrants(hour, minute) as Array<Integer> {
+        var quadrants = new Array<Integer>[3];
+        var ix = 0;
+        if ((hour<=3-HDELTA or hour>=3+HDELTA) and (minute<=15-MDELTA or minute>=15+MDELTA)) {
+            quadrants[ix] = 15;
+            ix += 1;
         }
 
-        return angle;
+        if ((hour>=HDELTA and hour<=12-HDELTA) and (minute>=MDELTA and minute<=60-MDELTA)) {
+            quadrants[ix] = 0;
+            ix += 1;
+        }
+
+        if ((hour<=6-HDELTA or hour>=6+HDELTA) and (minute<=30-MDELTA or minute>=30+MDELTA)) {
+            quadrants[ix] = 30;
+            ix += 1;
+        }
+
+        if (ix<3) {
+            quadrants[ix] = 45;
+        }
+
+        return quadrants;
     }
 
     private function drawHands(dc as Dc, clockTime) {
@@ -267,10 +281,9 @@ class Analog1View extends WatchUi.WatchFace {
 
             drawMarks(bufDc);
             drawHands(bufDc, clockTime);
-            var quadrant = selectQuadrantAngle(hour, minute, -1);
-            drawDate(bufDc, quadrant);
-            var q = selectQuadrantAngle(hour, minute, quadrant);
-            drawBattery(bufDc, q);
+            var quadrants = getFreeQuadrants(hour, minute);
+            drawDate(bufDc, quadrants[0]);
+            drawBattery(bufDc, quadrants[1]);
         }
 
         dc.drawBitmap(0, 0, offscreenBuffer);
