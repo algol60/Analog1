@@ -12,6 +12,8 @@ class Analog1View extends WatchUi.WatchFace {
     // Pretend there are 60 degrees in a circle.
     //
     private const FRAC = Math.PI / 30.0;
+    private const LONG_MARK_LEN = 10;
+    private const SHORT_MARK_LEN = 8;
     private const HDELTA = 1.5;
     private const MDELTA = 8;
 
@@ -57,8 +59,8 @@ class Analog1View extends WatchUi.WatchFace {
             var cos = Math.cos(angle);
             if (i%5==0) {
                 dc.setPenWidth(i==0 ? 15 : 7);
-                var p0 = sin*(radius-10);
-                var p1 = cos*(radius-10);
+                var p0 = sin*(radius-LONG_MARK_LEN);
+                var p1 = cos*(radius-LONG_MARK_LEN);
                 dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
                 dc.setPenWidth(7);
                 dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
@@ -67,8 +69,8 @@ class Analog1View extends WatchUi.WatchFace {
                 dc.drawLine(w+p1, h-p0, w+cos*w, h-sin*h);
             } else {
                 dc.setPenWidth(1);
-                var p0 = sin*(radius-8);
-                var p1 = cos*(radius-8);
+                var p0 = sin*(radius-SHORT_MARK_LEN);
+                var p1 = cos*(radius-SHORT_MARK_LEN);
                 dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
                 dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
                 dc.drawLine(w-p1, h+p0, w-cos*w, h+sin*h);
@@ -76,39 +78,6 @@ class Analog1View extends WatchUi.WatchFace {
             }
         }
     }
-
-    // // Draw marks around the edge of the screen using two colors
-    // // to show the seconds. Takes longer, so uses more power.
-    // //
-    // private function drawColorMarks(dc as Dc, sec) {
-    //     var w = screenCenter[0];
-    //     var h = screenCenter[1];
-    //     var color = Graphics.COLOR_WHITE;
-    //     dc.setColor(color, color);
-    //     for (var i=0; i<60; i++) {
-    //         var angle = FRAC*(60-i);
-    //         var sin = Math.sin(angle);
-    //         var cos = Math.cos(angle);
-    //         if (i%5==0) {
-    //             // if (i>sec) {
-    //             //     dc.setColor(Graphics.COLOR_BLUE, Graphics.COLOR_TRANSPARENT);
-    //             // }
-    //             dc.setPenWidth(5);
-    //             dc.drawLine(w-sin*(w-10), h-cos*(h-10), w-sin*w, h-cos*h);
-    //             // if (i>sec) {
-    //             //     dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-    //             // }
-    //         } else {
-    //             dc.setPenWidth(1);
-    //             dc.drawLine(w-sin*(w-8), h-cos*(h-8), w-sin*w, h-cos*h);
-    //         }
-
-    //         if (i==sec) {
-    //             color = Graphics.COLOR_BLUE;
-    //             dc.setColor(color, color);
-    //         }
-    //     }
-    // }
 
     private function drawBattery(dc as Dc, angleopp) as Void {
         var WIDTH = 32;
@@ -216,7 +185,23 @@ class Analog1View extends WatchUi.WatchFace {
         return quadrants;
     }
 
-    private function drawHands(dc as Dc, clockTime) {
+    private function minus(a, delta) {
+        a -= delta;
+        if (a<0) {
+            a += 60;
+        }
+        return a;
+    }
+
+    private function plus(a, delta) {
+        a += delta;
+        if (a>=60) {
+            a -= 60;
+        }
+        return a;
+    }
+
+    private function drawHands2(dc as Dc, clockTime) {
         var w = screenCenter[0];
         var h = screenCenter[1];
         var hour = clockTime.hour;
@@ -226,19 +211,110 @@ class Analog1View extends WatchUi.WatchFace {
         }
         hour = hour + minute/5.0/12.0;
 
-        var angleh = FRAC*hour*5;
-        var sin = Math.sin(angleh);
-        var cos = Math.cos(angleh);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.setPenWidth(12);
-        dc.drawLine(w, h, w+sin*(radius*0.5), h-cos*(radius*0.5));
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
 
-        var anglem = FRAC*minute;
-        sin = Math.sin(anglem);
-        cos = Math.cos(anglem);
-        dc.setPenWidth(8);
-        dc.drawLine(w, h, w+sin*(radius-20), h-cos*(radius-20));
+        // Hour hand (short, wide).
+        //
+        var angle0 = FRAC*hour*5.0;
+        var sin0 = Math.sin(angle0);
+        var cos0 = Math.cos(angle0);
+
+        var angle1 = FRAC*minus(hour*5, 7.5);
+        var sin1 = Math.sin(angle1);
+        var cos1 = Math.cos(angle1);
+
+        var angle2 = FRAC*minus(hour*5.0, 2);
+        var sin2 = Math.sin(angle2);
+        var cos2 = Math.cos(angle2);
+
+        var angle3 = FRAC*plus(hour*5.0, 2);
+        var sin3 = Math.sin(angle3);
+        var cos3 = Math.cos(angle3);
+
+        var angle4 = FRAC*plus(hour*5, 7.5);
+        var sin4 = Math.sin(angle4);
+        var cos4 = Math.cos(angle4);
+
+        var x0 = w+sin1*(radius*0.05);
+        var y0 = h-cos1*(radius*0.05);
+        var x1 = w+sin2*(radius*0.4);
+        var y1 = h-cos2*(radius*0.4);
+        var x2 = w+sin0*(radius*0.5);
+        var y2 = h-cos0*(radius*0.5);
+        var x3 = w+sin3*(radius*0.4);
+        var y3 = h-cos3*(radius*0.4);
+        var x4 = w+sin4*(radius*0.05);
+        var y4 = h-cos4*(radius*0.05);
+        dc.fillPolygon([[x0, y0], [x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
+
+        // Minute hand (long, narrow, edge).
+        //
+        angle0 = FRAC*minute;
+        sin0 = Math.sin(angle0);
+        cos0 = Math.cos(angle0);
+
+        angle1 = FRAC*minus(minute, 7.5);
+        sin1 = Math.sin(angle1);
+        cos1 = Math.cos(angle1);
+
+        angle2 = FRAC*minus(minute, 1);
+        sin2 = Math.sin(angle2);
+        cos2 = Math.cos(angle2);
+
+        angle3 = FRAC*plus(minute, 1);
+        sin3 = Math.sin(angle3);
+        cos3 = Math.cos(angle3);
+
+        angle4 = FRAC*plus(minute, 7.5);
+        sin4 = Math.sin(angle4);
+        cos4 = Math.cos(angle4);
+
+        x0 = w+sin1*(radius*0.05);
+        y0 = h-cos1*(radius*0.05);
+        x1 = w+sin2*(radius*0.7);
+        y1 = h-cos2*(radius*0.7);
+        x2 = w+sin0*(radius-LONG_MARK_LEN);
+        y2 = h-cos0*(radius-LONG_MARK_LEN);
+        x3 = w+sin3*(radius*0.7);
+        y3 = h-cos3*(radius*0.7);
+        x4 = w+sin4*(radius*0.05);
+        y4 = h-cos4*(radius*0.05);
+        dc.fillPolygon([[x0, y0], [x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
+
+        // Draw the outline of the minute hand to make it look like
+        // it sits on top of the hour hand.
+        //
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        dc.drawLine(x0, y0, x1, y1);
+        dc.drawLine(x1, y1, x2, y2);
+        dc.drawLine(x2, y2, x3, y3);
+        dc.drawLine(x3, y3, x4, y4);
+        dc.drawLine(x4, y4, x0, y0);
     }
+
+    // private function drawHands(dc as Dc, clockTime) {
+    //     var w = screenCenter[0];
+    //     var h = screenCenter[1];
+    //     var hour = clockTime.hour;
+    //     var minute = clockTime.min;
+    //     if (hour>12) {
+    //         hour = hour - 12;
+    //     }
+    //     hour = hour + minute/5.0/12.0;
+
+    //     var angleh = FRAC*hour*5;
+    //     var sin = Math.sin(angleh);
+    //     var cos = Math.cos(angleh);
+    //     dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+    //     dc.setPenWidth(12);
+    //     dc.drawLine(w, h, w+sin*(radius*0.5), h-cos*(radius*0.5));
+
+    //     var anglem = FRAC*minute;
+    //     sin = Math.sin(anglem);
+    //     cos = Math.cos(anglem);
+    //     dc.setPenWidth(8);
+    //     dc.drawLine(w, h, w+sin*(radius-20), h-cos*(radius-20));
+    // }
 
     private function drawDate(dc as Dc, quadrant) as Void {
         var angleopp = FRAC*quadrant;
@@ -306,7 +382,7 @@ class Analog1View extends WatchUi.WatchFace {
             bufDc.clear();
 
             drawMarks(bufDc);
-            drawHands(bufDc, clockTime);
+            drawHands2(bufDc, clockTime);
             var quadrants = getFreeQuadrants(hour, minute);
             drawDate(bufDc, quadrants[0]);
             drawBattery(bufDc, quadrants[1]);
