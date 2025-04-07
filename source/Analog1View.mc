@@ -116,8 +116,8 @@ class Analog1View extends WatchUi.WatchFace {
         var w = screenCenter[0];
         var h = screenCenter[1];
 
-        // Get the "steps/stepGoal" string.
-        // (Not enough room to include stepGoal.)
+        // Get the "steps" string.
+        // (Not enough room to also include stepGoal.)
         //
         var steps = ActivityMonitor.getInfo().steps;
         if (steps==null) {
@@ -157,6 +157,15 @@ class Analog1View extends WatchUi.WatchFace {
         //
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(x+WIDTH/2, y+HEIGHT, Graphics.FONT_XTINY, ss, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // Draw a steps/stepGoal bar.
+        //
+        var stepGoal = ActivityMonitor.getInfo().stepGoal;
+        var ratio = (1.0 * steps) / stepGoal; // Multiply by 1.0 to get float divide.
+        if (ratio>1.0) {
+            ratio = 1.0;
+        }
+        dc.drawLine(x, y+HEIGHT/2+6, x+ratio*WIDTH, y+HEIGHT/2+6);
     }
 
     // // Load your resources here
