@@ -131,9 +131,11 @@ class Analog1View extends WatchUi.WatchFace {
         //
         var stepGoal = ActivityMonitor.getInfo().stepGoal;
         var ratio = (1.0 * steps) / stepGoal; // Multiply by 1.0 to get float divide.
-        if (ratio>1.0) {
+        if (ratio>=1.0) {
             ratio = 1.0;
+            dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_GREEN);
         }
+        dc.setPenWidth(3);
         dc.drawLine(x, y+HEIGHT/2+6, x+ratio*WIDTH, y+HEIGHT/2+6);
     }
 
