@@ -23,11 +23,12 @@ class Analog1View extends WatchUi.WatchFace {
     // private var screenShape as Number;
     private var screenCenter as Array<Number>;
     private var radius as Number;
+    private var marksBuffer as BufferedBitmap;
     private var offscreenBuffer as BufferedBitmap;
 
     public function initialize() {
         WatchFace.initialize();
-        canPartialUpdate = (WatchUi.WatchFace has :onPartialUpdate);
+        canPartialUpdate = WatchUi.WatchFace has :onPartialUpdate;
 
         var deviceSettings = System.getDeviceSettings();
         // screenShape = deviceSettings.screenShape;
@@ -40,19 +41,52 @@ class Analog1View extends WatchUi.WatchFace {
         radius = screenCenter[0] <screenCenter[1] ? screenCenter[0] : screenCenter[1];
 
         var options = {:width=>width, :height=>height};
+        marksBuffer = new Graphics.BufferedBitmap(options);
         offscreenBuffer = new Graphics.BufferedBitmap(options);
+
+        // Only draw the marks once.
+        //
+        var marksDc = marksBuffer.getDc();
+        marksDc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        marksDc.clear();
+        drawMarks(marksDc);
+        // drawMarks3(marksDc);
     }
+
+    // private function drawMarks3(dc as Dc) as Void {
+    //     var w = screenCenter[0];
+    //     var h = screenCenter[1];
+    //     var color = Graphics.COLOR_RED;
+    //     dc.setColor(color, color);
+    //     for (var i=0; i<15; i += 5) {
+    //         var angle1 = FRAC*minus(i, 0.5);
+    //         var sin1 = Math.sin(angle1);
+    //         var cos1 = Math.cos(angle1);
+    //         var angle2 = FRAC*plus(i, 0.5);
+    //         var sin2 = Math.sin(angle2);
+    //         var cos2 = Math.cos(angle2);
+    //         var poly = [
+    //             [w+sin1*radius, h+cos1*radius],
+    //             [w+sin2*radius, h+cos2*radius],
+    //             [w-sin1*radius, h-cos1*radius],
+    //             [w-sin2*radius, h-cos2*radius]
+    //         ];
+    //         dc.fillPolygon(poly);
+    //     }
+    // }
 
     // Draw the marks around the edge.
     // We only need to count through the first quadrant;
     // the marks in the other quadrants are reflections.
     // This saves us from doing more trigonometry.
     //
+    // TODO Draw these with polygons to look nicer.
+    //
     private function drawMarks(dc as Dc) as Void {
         var w = screenCenter[0];
         var h = screenCenter[1];
         var color = Graphics.COLOR_WHITE;
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(color, color);
         for (var i=0; i<15; i++) {
             var angle = FRAC*(60-i);
             var sin = Math.sin(angle);
@@ -203,7 +237,7 @@ class Analog1View extends WatchUi.WatchFace {
         return a;
     }
 
-    private function drawHands2(dc as Dc, clockTime) {
+    private function drawHands(dc as Dc, clockTime) {
         var w = screenCenter[0];
         var h = screenCenter[1];
         var hour = clockTime.hour;
@@ -332,19 +366,6 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawText(w+sin*(radius*0.5), h-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
-    // private function drawSeconds(dc as Dc, second as Integer) as Void {
-    //     var arcStart = second + 15;
-    //     if (arcStart>60) {
-    //         arcStart -= 60;
-    //     }
-    //     arcStart = 30 - arcStart;
-    //     dc.setPenWidth(12);
-    //     dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_GREEN);
-    //     var w = screenCenter[0];
-    //     var h = screenCenter[1];
-    //     dc.drawArc(w, h, radius-7, Graphics.ARC_CLOCKWISE, arcStart*6+3, arcStart*6-3);
-    // }
-
     private function drawSecondsLine(dc as Dc, second as Integer) as Void {
         var w = screenCenter[0];
         var h = screenCenter[1];
@@ -380,11 +401,11 @@ class Analog1View extends WatchUi.WatchFace {
             //
 
             var bufDc = offscreenBuffer.getDc();
-            bufDc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-            bufDc.clear();
+            // bufDc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            // bufDc.clear();
+            bufDc.drawBitmap(0, 0, marksBuffer);
 
-            drawMarks(bufDc);
-            drawHands2(bufDc, clockTime);
+            drawHands(bufDc, clockTime);
             var quadrants = getFreeQuadrants(hour, minute);
             drawDate(bufDc, quadrants[0]);
             drawBattery(bufDc, quadrants[1]);
