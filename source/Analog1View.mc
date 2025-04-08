@@ -12,8 +12,9 @@ class Analog1View extends WatchUi.WatchFace {
     // Pretend there are 60 degrees in a circle.
     //
     private const FRAC = Math.PI / 30.0;
-    private const LONG_MARK_LEN = 10;
-    private const SHORT_MARK_LEN = 8;
+    private const TWELVE_MARK_LEN = 0.11;
+    private const LONG_MARK_LEN = 0.075;
+    private const SHORT_MARK_LEN = 0.05;
     private const HDELTA = 1.5;
     private const MDELTA = 8;
 
@@ -21,7 +22,7 @@ class Analog1View extends WatchUi.WatchFace {
     private var canPartialUpdate as Boolean;
     private var previousDrawnMinute as Number = -1;
     // private var screenShape as Number;
-    private var screenCenter as Array<Number>;
+    private var centreXY as Array<Number>;
     private var radius as Number;
     private var marksBuffer as BufferedBitmap;
     private var offscreenBuffer as BufferedBitmap;
@@ -34,11 +35,11 @@ class Analog1View extends WatchUi.WatchFace {
         // screenShape = deviceSettings.screenShape;
         var width = deviceSettings.screenWidth;
         var height = deviceSettings.screenHeight;
-        screenCenter = [width/2, height/2] as Array<Number>;
+        centreXY = [width/2, height/2] as Array<Number>;
 
         // Allow for non-circular/square faces.
         //
-        radius = screenCenter[0] <screenCenter[1] ? screenCenter[0] : screenCenter[1];
+        radius = centreXY[0] <centreXY[1] ? centreXY[0] : centreXY[1];
 
         var options = {:width=>width, :height=>height};
         marksBuffer = new Graphics.BufferedBitmap(options);
@@ -50,74 +51,49 @@ class Analog1View extends WatchUi.WatchFace {
         marksDc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
         marksDc.clear();
         drawMarks(marksDc);
-        // drawMarks3(marksDc);
     }
 
-    // private function drawMarks3(dc as Dc) as Void {
-    //     var w = screenCenter[0];
-    //     var h = screenCenter[1];
-    //     var color = Graphics.COLOR_RED;
-    //     dc.setColor(color, color);
-    //     for (var i=0; i<15; i += 5) {
-    //         var angle1 = FRAC*minus(i, 0.5);
-    //         var sin1 = Math.sin(angle1);
-    //         var cos1 = Math.cos(angle1);
-    //         var angle2 = FRAC*plus(i, 0.5);
-    //         var sin2 = Math.sin(angle2);
-    //         var cos2 = Math.cos(angle2);
-    //         var poly = [
-    //             [w+sin1*radius, h+cos1*radius],
-    //             [w+sin2*radius, h+cos2*radius],
-    //             [w-sin1*radius, h-cos1*radius],
-    //             [w-sin2*radius, h-cos2*radius]
-    //         ];
-    //         dc.fillPolygon(poly);
-    //     }
-    // }
+    private function drawMark(dc as Dc, second as Integer, dangle as Float, len as Float) as Void {
+        var cx = centreXY[0];
+        var cy = centreXY[1];
+        var angle1 = FRAC*minus(second, dangle);
+        var sin1 = Math.sin(angle1);
+        var cos1 = Math.cos(angle1);
+        var angle2 = FRAC*plus(second, dangle);
+        var sin2 = Math.sin(angle2);
+        var cos2 = Math.cos(angle2);
+        var s1 = sin1*radius;
+        var c1 = cos1*radius;
+        var s2 = sin2*radius;
+        var c2 = cos2*radius;
 
-    // Draw the marks around the edge.
-    // We only need to count through the first quadrant;
-    // the marks in the other quadrants are reflections.
-    // This saves us from doing more trigonometry.
-    //
-    // TODO Draw these with polygons to look nicer.
-    //
+        // Draw a mark by drawing a polygon between two points on the radius
+        // and a fraction of the distance between two points on the opposite radius.
+        // This produces a rectangle instead of tapering towards the centre.
+        //
+        var poly = [
+            [cx+s1, cy-c1],
+            [cx+s2, cy-c2],
+            [(1-len)*(cx+s2) + len*(cx-s1), (1-len)*(cy-c2) + len*(cy+c1)],
+            [(1-len)*(cx+s1) + len*(cx-s2), (1-len)*(cy-c1) + len*(cy+c2)]
+        ];
+        dc.fillPolygon(poly);
+    }
+
     private function drawMarks(dc as Dc) as Void {
-        var w = screenCenter[0];
-        var h = screenCenter[1];
-        var color = Graphics.COLOR_WHITE;
-        dc.setColor(color, color);
-        for (var i=0; i<15; i++) {
-            var angle = FRAC*(60-i);
-            var sin = Math.sin(angle);
-            var cos = Math.cos(angle);
-            if (i%5==0) {
-                dc.setPenWidth(i==0 ? 15 : 7);
-                var p0 = sin*(radius-LONG_MARK_LEN);
-                var p1 = cos*(radius-LONG_MARK_LEN);
-                dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
-                dc.setPenWidth(7);
-                dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
-
-                dc.drawLine(w-p1, h+p0, w-cos*w, h+sin*h);
-                dc.drawLine(w+p1, h-p0, w+cos*w, h-sin*h);
-            } else {
-                dc.setPenWidth(1);
-                var p0 = sin*(radius-SHORT_MARK_LEN);
-                var p1 = cos*(radius-SHORT_MARK_LEN);
-                dc.drawLine(w-p0, h-p1, w-sin*w, h-cos*h);
-                dc.drawLine(w+p0, h+p1, w+sin*w, h+cos*h);
-                dc.drawLine(w-p1, h+p0, w-cos*w, h+sin*h);
-                dc.drawLine(w+p1, h-p0, w+cos*w, h-sin*h);
-            }
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
+        for (var i=0; i<60; i++) {
+            var dangle = i==0 ? 0.6 : i%5==0 ? 0.35 : 0.05;
+            var len = i==0 ? TWELVE_MARK_LEN : i%5==0 ? LONG_MARK_LEN : SHORT_MARK_LEN;
+            drawMark(dc, i, dangle, len);
         }
     }
 
     private function drawBattery(dc as Dc, angleopp) as Void {
         var WIDTH = 32;
         var HEIGHT = 16;
-        var w = screenCenter[0];
-        var h = screenCenter[1];
+        var cx = centreXY[0];
+        var cy = centreXY[1];
 
         // Get the "steps" string.
         // (Not enough room to also include stepGoal.)
@@ -141,8 +117,8 @@ class Analog1View extends WatchUi.WatchFace {
 
         var sin = Math.sin(FRAC*angleopp);
         var cos = Math.cos(FRAC*angleopp);
-        var x = w+sin*(radius*0.5) - WIDTH/2;
-        var y = h-cos*(radius*0.5) - textDims[1]/2;
+        var x = cx+sin*(radius*0.5) - WIDTH/2;
+        var y = cy-cos*(radius*0.5) - textDims[1]/2;
 
         // Draw the outline of the battery.
         //
@@ -238,8 +214,8 @@ class Analog1View extends WatchUi.WatchFace {
     }
 
     private function drawHands(dc as Dc, clockTime) {
-        var w = screenCenter[0];
-        var h = screenCenter[1];
+        var cx = centreXY[0];
+        var cy = centreXY[1];
         var hour = clockTime.hour;
         var minute = clockTime.min;
         if (hour>12) {
@@ -271,16 +247,16 @@ class Analog1View extends WatchUi.WatchFace {
         var sin4 = Math.sin(angle4);
         var cos4 = Math.cos(angle4);
 
-        var x0 = w+sin1*(radius*0.05);
-        var y0 = h-cos1*(radius*0.05);
-        var x1 = w+sin2*(radius*0.4);
-        var y1 = h-cos2*(radius*0.4);
-        var x2 = w+sin0*(radius*0.5);
-        var y2 = h-cos0*(radius*0.5);
-        var x3 = w+sin3*(radius*0.4);
-        var y3 = h-cos3*(radius*0.4);
-        var x4 = w+sin4*(radius*0.05);
-        var y4 = h-cos4*(radius*0.05);
+        var x0 = cx+sin1*(radius*0.05);
+        var y0 = cy-cos1*(radius*0.05);
+        var x1 = cx+sin2*(radius*0.4);
+        var y1 = cy-cos2*(radius*0.4);
+        var x2 = cx+sin0*(radius*0.5);
+        var y2 = cy-cos0*(radius*0.5);
+        var x3 = cx+sin3*(radius*0.4);
+        var y3 = cy-cos3*(radius*0.4);
+        var x4 = cx+sin4*(radius*0.05);
+        var y4 = cy-cos4*(radius*0.05);
         dc.fillPolygon([[x0, y0], [x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
 
         // Minute hand (long, narrow, edge).
@@ -305,16 +281,16 @@ class Analog1View extends WatchUi.WatchFace {
         sin4 = Math.sin(angle4);
         cos4 = Math.cos(angle4);
 
-        x0 = w+sin1*(radius*0.05);
-        y0 = h-cos1*(radius*0.05);
-        x1 = w+sin2*(radius*0.7);
-        y1 = h-cos2*(radius*0.7);
-        x2 = w+sin0*(radius-LONG_MARK_LEN);
-        y2 = h-cos0*(radius-LONG_MARK_LEN);
-        x3 = w+sin3*(radius*0.7);
-        y3 = h-cos3*(radius*0.7);
-        x4 = w+sin4*(radius*0.05);
-        y4 = h-cos4*(radius*0.05);
+        x0 = cx+sin1*(radius*0.05);
+        y0 = cy-cos1*(radius*0.05);
+        x1 = cx+sin2*(radius*0.7);
+        y1 = cy-cos2*(radius*0.7);
+        x2 = cx+sin0*(radius*(1-2*LONG_MARK_LEN));
+        y2 = cy-cos0*(radius*(1-2*LONG_MARK_LEN));
+        x3 = cx+sin3*(radius*0.7);
+        y3 = cy-cos3*(radius*0.7);
+        x4 = cx+sin4*(radius*0.05);
+        y4 = cy-cos4*(radius*0.05);
         dc.fillPolygon([[x0, y0], [x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
 
         // Draw the outline of the minute hand to make it look like
@@ -328,30 +304,6 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawLine(x4, y4, x0, y0);
     }
 
-    // private function drawHands(dc as Dc, clockTime) {
-    //     var w = screenCenter[0];
-    //     var h = screenCenter[1];
-    //     var hour = clockTime.hour;
-    //     var minute = clockTime.min;
-    //     if (hour>12) {
-    //         hour = hour - 12;
-    //     }
-    //     hour = hour + minute/5.0/12.0;
-
-    //     var angleh = FRAC*hour*5;
-    //     var sin = Math.sin(angleh);
-    //     var cos = Math.cos(angleh);
-    //     dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-    //     dc.setPenWidth(12);
-    //     dc.drawLine(w, h, w+sin*(radius*0.5), h-cos*(radius*0.5));
-
-    //     var anglem = FRAC*minute;
-    //     sin = Math.sin(anglem);
-    //     cos = Math.cos(anglem);
-    //     dc.setPenWidth(8);
-    //     dc.drawLine(w, h, w+sin*(radius-20), h-cos*(radius-20));
-    // }
-
     private function drawDate(dc as Dc, quadrant) as Void {
         var angleopp = FRAC*quadrant;
         var sin = Math.sin(angleopp);
@@ -361,21 +313,16 @@ class Analog1View extends WatchUi.WatchFace {
         var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
         var xy = dc.getTextDimensions(dateStr, Graphics.FONT_XTINY);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        var w = screenCenter[0];
-        var h = screenCenter[1];
-        dc.drawText(w+sin*(radius*0.5), h-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+        var cx = centreXY[0];
+        var cy = centreXY[1];
+        dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     private function drawSecondsLine(dc as Dc, second as Integer) as Void {
-        var w = screenCenter[0];
-        var h = screenCenter[1];
-        var angle = FRAC*second;
-        var sin = Math.sin(angle);
-        var cos = Math.cos(angle);
-
-        dc.setPenWidth(3);
         dc.setColor(Graphics.COLOR_BLUE, Graphics.COLOR_BLUE);
-        dc.drawLine(w+sin*(radius-20), h-cos*(radius-20), w+sin*radius, h-cos*radius);
+
+        var dangle = 0.15;
+        drawMark(dc, second, dangle, TWELVE_MARK_LEN);
     }
 
     // Update the view.
@@ -453,26 +400,3 @@ class Analog1View extends WatchUi.WatchFace {
         WatchUi.requestUpdate();
     }
 }
-
-// class Analog1Delegate extends WatchUi.WatchFaceDelegate {
-//     // private var _view as Analog1View;
-
-//     //! Constructor
-//     //! @param view The analog view
-//     public function initialize(view as Analog1View) {
-//         WatchFaceDelegate.initialize();
-//         // _view = view;
-//     }
-
-//     //! The onPowerBudgetExceeded callback is called by the system if the
-//     //! onPartialUpdate method exceeds the allowed power budget. If this occurs,
-//     //! the system will stop invoking onPartialUpdate each second, so we notify the
-//     //! view here to let the rendering methods know they should not be rendering a
-//     //! second hand.
-//     //! @param powerInfo Information about the power budget
-//     public function onPowerBudgetExceeded(powerInfo as WatchFacePowerInfo) as Void {
-//         System.println("Average execution time: " + powerInfo.executionTimeAverage);
-//         System.println("Allowed execution time: " + powerInfo.executionTimeLimit);
-//         // _view.turnPartialUpdatesOff();
-//     }
-// }
