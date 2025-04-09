@@ -7,16 +7,32 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.WatchUi;
 
+// A deliberately simply analog watch face.
+//
+// The outstanding feature is that the day/date and battery/steps
+// are never hidden by the hands.
+//
 class Analog1View extends WatchUi.WatchFace {
 
     // Pretend there are 60 degrees in a circle.
     //
     private const FRAC = Math.PI / 30.0;
+
+    // Marker lengths (proportinal to the radius).
+    //
     private const TWELVE_MARK_LEN = 0.11;
     private const LONG_MARK_LEN = 0.075;
     private const SHORT_MARK_LEN = 0.05;
+
+    // The angles of the hour and minutes hands defining a quadrant to be avoided.
+    //
     private const HDELTA = 1.5;
     private const MDELTA = 8;
+
+    // Battery icon size.
+    //
+    private const BWIDTH = 32;
+    private const BHEIGHT = 16;
 
     private var isSleeping = false as Boolean;
     private var canPartialUpdate as Boolean;
@@ -53,13 +69,15 @@ class Analog1View extends WatchUi.WatchFace {
         drawMarks(marksDc);
     }
 
+    // Draw a single hour / minute / second mark.
+    //
     private function drawMark(dc as Dc, second as Integer, dangle as Float, len as Float) as Void {
         var cx = centreXY[0];
         var cy = centreXY[1];
-        var angle1 = FRAC*minus(second, dangle);
+        var angle1 = FRAC*minusMod(second, dangle);
         var sin1 = Math.sin(angle1);
         var cos1 = Math.cos(angle1);
-        var angle2 = FRAC*plus(second, dangle);
+        var angle2 = FRAC*plusMod(second, dangle);
         var sin2 = Math.sin(angle2);
         var cos2 = Math.cos(angle2);
         var s1 = sin1*radius;
@@ -80,6 +98,8 @@ class Analog1View extends WatchUi.WatchFace {
         dc.fillPolygon(poly);
     }
 
+    // Draw the hour / minute / second marks.
+    //
     private function drawMarks(dc as Dc) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
         for (var i=0; i<60; i++) {
@@ -90,8 +110,6 @@ class Analog1View extends WatchUi.WatchFace {
     }
 
     private function drawBattery(dc as Dc, angleopp) as Void {
-        var WIDTH = 32;
-        var HEIGHT = 16;
         var cx = centreXY[0];
         var cy = centreXY[1];
 
@@ -117,25 +135,25 @@ class Analog1View extends WatchUi.WatchFace {
 
         var sin = Math.sin(FRAC*angleopp);
         var cos = Math.cos(FRAC*angleopp);
-        var x = cx+sin*(radius*0.5) - WIDTH/2;
+        var x = cx+sin*(radius*0.5) - BWIDTH/2;
         var y = cy-cos*(radius*0.5) - textDims[1]/2;
 
         // Draw the outline of the battery.
         //
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         dc.setPenWidth(1);
-        dc.drawRectangle(x, y-HEIGHT/2, WIDTH, HEIGHT);
-        dc.drawLine(x+WIDTH+1, y-HEIGHT/2+4, x+WIDTH+1, y-HEIGHT/2+HEIGHT-4);
+        dc.drawRectangle(x, y-BHEIGHT/2, BWIDTH, BHEIGHT);
+        dc.drawLine(x+BWIDTH+1, y-BHEIGHT/2+4, x+BWIDTH+1, y-BHEIGHT/2+BHEIGHT-4);
 
         // Draw the battery bar.
         //
         dc.setColor(color, color);
-        dc.fillRectangle(x+1, y-HEIGHT/2+2, (WIDTH-4)*battery/100.0, (HEIGHT-4));
+        dc.fillRectangle(x+1, y-BHEIGHT/2+2, (BWIDTH-4)*battery/100.0, (BHEIGHT-4));
 
         // Draw the steps.
         //
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x+WIDTH/2, y+HEIGHT, Graphics.FONT_XTINY, ss, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(x+BWIDTH/2, y+BHEIGHT, Graphics.FONT_XTINY, ss, Graphics.TEXT_JUSTIFY_CENTER);
 
         // Draw a steps/stepGoal bar.
         //
@@ -146,7 +164,7 @@ class Analog1View extends WatchUi.WatchFace {
             dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_GREEN);
         }
         dc.setPenWidth(3);
-        dc.drawLine(x, y+HEIGHT/2+6, x+ratio*WIDTH, y+HEIGHT/2+6);
+        dc.drawLine(x, y+BHEIGHT/2+6, x+ratio*BWIDTH, y+BHEIGHT/2+6);
     }
 
     // // Load your resources here
@@ -157,6 +175,7 @@ class Analog1View extends WatchUi.WatchFace {
     // Called when this View is brought to the foreground. Restore
     // the state of this View and prepare it to be shown. This includes
     // loading resources into memory.
+    //
     function onShow() as Void {
         // Assuming onShow() is triggered after any settings change, force the watch face
         // to be re-drawn in the next call to onUpdate(). This is to immediately react to
@@ -168,8 +187,9 @@ class Analog1View extends WatchUi.WatchFace {
     // Find quadrants that don't have the hour and minute hand in them.
     // There are two hands (hour and minute), so there are always either two or three
     // free quadrants.
-    // The result will be that quadrants 0 and 1 will be the first two free quadrants.
-    // Quadrant 3 may or may not be valid depending on where the hands are,
+    //
+    // The result will be that quadrants [0] and [1] will be the first two free quadrants.
+    // Quadrant [3] may or may not be valid depending on where the hands are,
     // but we don't use it anyway.
     //
     private function getFreeQuadrants(hour, minute) as Array<Integer> {
@@ -197,7 +217,7 @@ class Analog1View extends WatchUi.WatchFace {
         return quadrants;
     }
 
-    private function minus(a, delta) {
+    private function minusMod(a, delta) {
         a -= delta;
         if (a<0) {
             a += 60;
@@ -205,7 +225,7 @@ class Analog1View extends WatchUi.WatchFace {
         return a;
     }
 
-    private function plus(a, delta) {
+    private function plusMod(a, delta) {
         a += delta;
         if (a>=60) {
             a -= 60;
@@ -231,19 +251,19 @@ class Analog1View extends WatchUi.WatchFace {
         var sin0 = Math.sin(angle0);
         var cos0 = Math.cos(angle0);
 
-        var angle1 = FRAC*minus(hour*5, 7.5);
+        var angle1 = FRAC*minusMod(hour*5, 7.5);
         var sin1 = Math.sin(angle1);
         var cos1 = Math.cos(angle1);
 
-        var angle2 = FRAC*minus(hour*5.0, 2);
+        var angle2 = FRAC*minusMod(hour*5.0, 2);
         var sin2 = Math.sin(angle2);
         var cos2 = Math.cos(angle2);
 
-        var angle3 = FRAC*plus(hour*5.0, 2);
+        var angle3 = FRAC*plusMod(hour*5.0, 2);
         var sin3 = Math.sin(angle3);
         var cos3 = Math.cos(angle3);
 
-        var angle4 = FRAC*plus(hour*5, 7.5);
+        var angle4 = FRAC*plusMod(hour*5, 7.5);
         var sin4 = Math.sin(angle4);
         var cos4 = Math.cos(angle4);
 
@@ -265,19 +285,19 @@ class Analog1View extends WatchUi.WatchFace {
         sin0 = Math.sin(angle0);
         cos0 = Math.cos(angle0);
 
-        angle1 = FRAC*minus(minute, 7.5);
+        angle1 = FRAC*minusMod(minute, 7.5);
         sin1 = Math.sin(angle1);
         cos1 = Math.cos(angle1);
 
-        angle2 = FRAC*minus(minute, 1);
+        angle2 = FRAC*minusMod(minute, 1);
         sin2 = Math.sin(angle2);
         cos2 = Math.cos(angle2);
 
-        angle3 = FRAC*plus(minute, 1);
+        angle3 = FRAC*plusMod(minute, 1);
         sin3 = Math.sin(angle3);
         cos3 = Math.cos(angle3);
 
-        angle4 = FRAC*plus(minute, 7.5);
+        angle4 = FRAC*plusMod(minute, 7.5);
         sin4 = Math.sin(angle4);
         cos4 = Math.cos(angle4);
 
@@ -318,11 +338,36 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
-    private function drawSecondsLine(dc as Dc, second as Integer) as Void {
-        dc.setColor(Graphics.COLOR_BLUE, Graphics.COLOR_BLUE);
+    // Draw the second hand as a red triangle pointing towards the centre.
+    //
+    private function drawSeconds(dc as Dc, second as Integer) as Void {
+        var cx = centreXY[0];
+        var cy = centreXY[1];
 
-        var dangle = 0.15;
-        drawMark(dc, second, dangle, TWELVE_MARK_LEN);
+        var angle0 = FRAC*second;
+        var sin0 = Math.sin(angle0);
+        var cos0 = Math.cos(angle0);
+
+        var angle1 = FRAC*minusMod(second, 1.0);
+        var sin1 = Math.sin(angle1);
+        var cos1 = Math.cos(angle1);
+
+        var angle2 = FRAC*plusMod(second, 1.0);
+        var sin2 = Math.sin(angle2);
+        var cos2 = Math.cos(angle2);
+
+        dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_RED);
+
+        // Draw the base of the triangle beyond the radius so the background marks
+        // don't show. The radius also affects the pointiness of the triangle.
+        //
+        var r = radius*1.1;
+        var tipHeight = 1-2*LONG_MARK_LEN;
+        dc.fillPolygon([
+            [cx+sin0*radius*tipHeight, cy-cos0*radius*tipHeight],
+            [cx+sin1*r, cy-cos1*r],
+            [cx+sin2*r, cy-cos2*r]
+        ]);
     }
 
     // Update the view.
@@ -360,7 +405,7 @@ class Analog1View extends WatchUi.WatchFace {
 
         dc.drawBitmap(0, 0, offscreenBuffer);
         if (canPartialUpdate or !isSleeping) {
-            drawSecondsLine(dc, second);
+            drawSeconds(dc, second);
         }
     }
 
@@ -369,16 +414,18 @@ class Analog1View extends WatchUi.WatchFace {
 
         var clockTime = System.getClockTime();
         var second = clockTime.sec;
-        drawSecondsLine(dc, second);
+        drawSeconds(dc, second);
     }
 
     // Called when this View is removed from the screen. Save the
     // state of this View here. This includes freeing resources from
     // memory.
+    //
     function onHide() as Void {
     }
 
     // The user has just looked at their watch. Timers and animations may be started here.
+    //
     function onExitSleep() as Void {
         isSleeping = false;
 
@@ -390,6 +437,7 @@ class Analog1View extends WatchUi.WatchFace {
     }
 
     // Terminate any active timers and prepare for slow updates.
+    //
     function onEnterSleep() as Void {
         isSleeping = true;
 
