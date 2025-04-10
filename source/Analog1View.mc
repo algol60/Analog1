@@ -37,7 +37,6 @@ class Analog1View extends WatchUi.WatchFace {
     private var isSleeping = false as Boolean;
     private var canPartialUpdate as Boolean;
     private var previousDrawnMinute as Number = -1;
-    // private var screenShape as Number;
     private var centreXY as Array<Number>;
     private var radius as Number;
     private var marksBuffer as BufferedBitmap;
@@ -48,7 +47,6 @@ class Analog1View extends WatchUi.WatchFace {
         canPartialUpdate = WatchUi.WatchFace has :onPartialUpdate;
 
         var deviceSettings = System.getDeviceSettings();
-        // screenShape = deviceSettings.screenShape;
         var width = deviceSettings.screenWidth;
         var height = deviceSettings.screenHeight;
         centreXY = [width/2, height/2] as Array<Number>;
@@ -156,6 +154,7 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawText(x+BWIDTH/2, y+BHEIGHT, Graphics.FONT_XTINY, ss, Graphics.TEXT_JUSTIFY_CENTER);
 
         // Draw a steps/stepGoal bar.
+        // Turn green when stepGoal is reached.
         //
         var stepGoal = ActivityMonitor.getInfo().stepGoal;
         var ratio = (1.0 * steps) / stepGoal; // Multiply by 1.0 to get float divide.
@@ -340,7 +339,7 @@ class Analog1View extends WatchUi.WatchFace {
 
     // Draw the second hand as a red triangle pointing towards the centre.
     //
-    private function drawSeconds(dc as Dc, second as Integer) as Void {
+    private function drawSecondHand(dc as Dc, second as Integer) as Void {
         var cx = centreXY[0];
         var cy = centreXY[1];
 
@@ -405,7 +404,7 @@ class Analog1View extends WatchUi.WatchFace {
 
         dc.drawBitmap(0, 0, offscreenBuffer);
         if (canPartialUpdate or !isSleeping) {
-            drawSeconds(dc, second);
+            drawSecondHand(dc, second);
         }
     }
 
@@ -414,7 +413,7 @@ class Analog1View extends WatchUi.WatchFace {
 
         var clockTime = System.getClockTime();
         var second = clockTime.sec;
-        drawSeconds(dc, second);
+        drawSecondHand(dc, second);
     }
 
     // Called when this View is removed from the screen. Save the
