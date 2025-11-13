@@ -24,10 +24,10 @@ class Analog1View extends WatchUi.WatchFace {
     private const LONG_MARK_LEN = 0.075;
     private const SHORT_MARK_LEN = 0.05;
 
-    // The angles of the hour and minutes hands defining a quadrant to be avoided.
-    //
-    private const HDELTA = 1.5;
-    private const MDELTA = 8;
+    // // The angles of the hour and minutes hands defining a quadrant to be avoided.
+    // //
+    // private const HDELTA = 1.5;
+    // private const MDELTA = 8;
 
     // Battery icon size.
     //
@@ -112,7 +112,7 @@ class Analog1View extends WatchUi.WatchFace {
         var cy = centreXY[1];
 
         // Get the "steps" string.
-        // (Not enough room to also include stepGoal.)
+        // (Not enough room to also include stepGoal, so draw a bar below.)
         //
         var steps = ActivityMonitor.getInfo().steps;
         if (steps==null) {
@@ -183,37 +183,119 @@ class Analog1View extends WatchUi.WatchFace {
         previousDrawnMinute = -1;
     }
 
-    // Find quadrants that don't have the hour and minute hand in them.
-    // There are two hands (hour and minute), so there are always either two or three
-    // free quadrants.
+    // // Find quadrants that don't have the hour and minute hand in them.
+    // // There are two hands (hour and minute), so there are always either two or three
+    // // free quadrants.
+    // //
+    // // The result will be that quadrants [0] and [1] will be the first two free quadrants.
+    // // Quadrant [3] may or may not be valid depending on where the hands are,
+    // // but we don't use it anyway.
+    // //
+    // private function getFreeQuadrants(hour, minute) as Array<Integer> {
+    //     var quadrants = new Array<Integer>[3];
+    //     var ix = 0;
+    //     if ((hour<=3-HDELTA or hour>=3+HDELTA) and (minute<=15-MDELTA or minute>=15+MDELTA)) {
+    //         quadrants[ix] = 15;
+    //         ix += 1;
+    //     }
+
+    //     if ((hour>=HDELTA and hour<=12-HDELTA) and (minute>=MDELTA and minute<=60-MDELTA)) {
+    //         quadrants[ix] = 0;
+    //         ix += 1;
+    //     }
+
+    //     if ((hour<=6-HDELTA or hour>=6+HDELTA) and (minute<=30-MDELTA or minute>=30+MDELTA)) {
+    //         quadrants[ix] = 30;
+    //         ix += 1;
+    //     }
+
+    //     if (ix<3) {
+    //         quadrants[ix] = 45;
+    //     }
+
+    //     return quadrants;
+    // }
+
+    // Find sectors that are large enough to fit pieces.
+    // The pieces will be spread evenly around the sectors.
     //
-    // The result will be that quadrants [0] and [1] will be the first two free quadrants.
-    // Quadrant [3] may or may not be valid depending on where the hands are,
-    // but we don't use it anyway.
+    // Return an array of length three containing the angles where
+    // the pieces will be drawn.
     //
-    private function getFreeQuadrants(hour, minute) as Array<Integer> {
-        var quadrants = new Array<Integer>[3];
+    private function getFreeSectors(hour, minute) as Array<Integer> {
+        // System.println(Lang.format("h $1$ m $2$", [hour, minute]));
+        // The minimum angle required to fit a piece in.
+        //
+        var minAngle = 15;
+
+        // Convert hour to (60) degrees; minute is already in 60ths.
+        hour = hour * 5;
+
+        var sectors = new Array<Integer>[3];
         var ix = 0;
-        if ((hour<=3-HDELTA or hour>=3+HDELTA) and (minute<=15-MDELTA or minute>=15+MDELTA)) {
-            quadrants[ix] = 15;
+
+        // a is the minimum hand, b is the maximum hand.
+        //
+        var a;
+        var b;
+        if (hour<minute) {
+            a = hour;
+            b = minute;
+        } else {
+            a = minute;
+            b = hour;
+        }
+
+        // How many pieces fit between the min and max hands?
+        // What is the angle shift to spread the pieces evenly?
+        //
+        // System.println(Lang.format("a $1$ b $2$", [a, b]));
+        var npieces = ((b-a)/minAngle).toLong();
+        var shift = npieces>0 ? (b-a)/(npieces+1) : -1;
+        var base = ix;
+        while ((ix<3) && ((ix-base)<npieces)) {
+            sectors[ix] = a + shift*(ix-base+1);
             ix += 1;
         }
 
-        if ((hour>=HDELTA and hour<=12-HDELTA) and (minute>=MDELTA and minute<=60-MDELTA)) {
-            quadrants[ix] = 0;
+        // Switch hands by adding 60 to the minimum hand.
+        // Repeat.
+        // Special case shift when the hands are at the same angle.
+        //
+        a += 60;
+        npieces = ((a-b)/minAngle).toLong();
+        shift = npieces>0 && npieces<4 ? (a-b)/(npieces+1) : minAngle;
+        base = ix;
+        while ((ix<3) && ((ix-base)<npieces)) {
+            // mod 60.0 so sorting works.
+            var t = b + shift*(ix-base+1);
+            if (t>60) { t -= 60;}
+            sectors[ix] = t;
             ix += 1;
         }
 
-        if ((hour<=6-HDELTA or hour>=6+HDELTA) and (minute<=30-MDELTA or minute>=30+MDELTA)) {
-            quadrants[ix] = 30;
-            ix += 1;
+        // Sort the sectors.
+        // This will keep the first piece as close to the first sector as possible.
+        // (Array.sort() since API level 5.0.0, Forerunner 55 is 3.4,
+        // so do it manually.)
+        //
+        var s0 = sectors[0];
+        var s1 = sectors[1];
+        var s2 = sectors[2];
+        if(s0>s1) {
+            s1 = s0;
+            s0 = sectors[1];
+        }
+        if (s1 > s2) {
+            s2 = s1;
+            s1 = sectors[2];
+            if (s0>s1) {
+                s1 = s0;
+                s0 = sectors[2];
+            }
         }
 
-        if (ix<3) {
-            quadrants[ix] = 45;
-        }
-
-        return quadrants;
+        return [s0, s1, s2];
     }
 
     private function minusMod(a, delta) {
@@ -323,18 +405,32 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawLine(x4, y4, x0, y0);
     }
 
-    private function drawDate(dc as Dc, quadrant) as Void {
+    // private function drawDate(dc as Dc, quadrant) as Void {
+    //     var angleopp = FRAC*quadrant;
+    //     var sin = Math.sin(angleopp);
+    //     var cos = Math.cos(angleopp);
+
+    //     var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
+    //     var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
+    //     var xy = dc.getTextDimensions(dateStr, Graphics.FONT_XTINY);
+    //     dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+    //     var cx = centreXY[0];
+    //     var cy = centreXY[1];
+    //     dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+    // }
+
+    private function drawText(dc as Dc, text, quadrant) as Void {
         var angleopp = FRAC*quadrant;
         var sin = Math.sin(angleopp);
         var cos = Math.cos(angleopp);
 
-        var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
-        var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
-        var xy = dc.getTextDimensions(dateStr, Graphics.FONT_XTINY);
+        // var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
+        // var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
+        var xy = dc.getTextDimensions(text, Graphics.FONT_SMALL);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         var cx = centreXY[0];
         var cy = centreXY[1];
-        dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_SMALL, text, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Draw the second hand as a red triangle pointing towards the centre.
@@ -378,7 +474,7 @@ class Analog1View extends WatchUi.WatchFace {
         var hour = clockTime.hour;
         var minute = clockTime.min;
         var second = clockTime.sec;
-        if (hour>12) {
+        if (hour>=12) {
             hour = hour - 12;
         }
         hour = hour + minute/5.0/12.0;
@@ -397,9 +493,17 @@ class Analog1View extends WatchUi.WatchFace {
             bufDc.drawBitmap(0, 0, marksBuffer);
 
             drawHands(bufDc, clockTime);
-            var quadrants = getFreeQuadrants(hour, minute);
-            drawDate(bufDc, quadrants[0]);
-            drawBattery(bufDc, quadrants[1]);
+            // var quadrants = getFreeQuadrants(hour, minute);
+            var quadrants = getFreeSectors(hour, minute);
+
+            var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
+            var dwStr = Lang.format("$1$", [info.day_of_week]);
+            drawText(bufDc, dwStr, quadrants[0]);
+            var dmStr = Lang.format("$1$\n$2$", [info.month, info.day]);
+            drawText(bufDc, dmStr, quadrants[1]);
+
+            // drawDate(bufDc, quadrants[0]);
+            drawBattery(bufDc, quadrants[2]);
         }
 
         dc.drawBitmap(0, 0, offscreenBuffer);
