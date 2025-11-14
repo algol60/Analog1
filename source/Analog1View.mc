@@ -24,11 +24,6 @@ class Analog1View extends WatchUi.WatchFace {
     private const LONG_MARK_LEN = 0.075;
     private const SHORT_MARK_LEN = 0.05;
 
-    // // The angles of the hour and minutes hands defining a quadrant to be avoided.
-    // //
-    // private const HDELTA = 1.5;
-    // private const MDELTA = 8;
-
     // Battery icon size.
     //
     private const BWIDTH = 32;
@@ -183,38 +178,12 @@ class Analog1View extends WatchUi.WatchFace {
         previousDrawnMinute = -1;
     }
 
-    // // Find quadrants that don't have the hour and minute hand in them.
-    // // There are two hands (hour and minute), so there are always either two or three
-    // // free quadrants.
-    // //
-    // // The result will be that quadrants [0] and [1] will be the first two free quadrants.
-    // // Quadrant [3] may or may not be valid depending on where the hands are,
-    // // but we don't use it anyway.
-    // //
-    // private function getFreeQuadrants(hour, minute) as Array<Integer> {
-    //     var quadrants = new Array<Integer>[3];
-    //     var ix = 0;
-    //     if ((hour<=3-HDELTA or hour>=3+HDELTA) and (minute<=15-MDELTA or minute>=15+MDELTA)) {
-    //         quadrants[ix] = 15;
-    //         ix += 1;
-    //     }
-
-    //     if ((hour>=HDELTA and hour<=12-HDELTA) and (minute>=MDELTA and minute<=60-MDELTA)) {
-    //         quadrants[ix] = 0;
-    //         ix += 1;
-    //     }
-
-    //     if ((hour<=6-HDELTA or hour>=6+HDELTA) and (minute<=30-MDELTA or minute>=30+MDELTA)) {
-    //         quadrants[ix] = 30;
-    //         ix += 1;
-    //     }
-
-    //     if (ix<3) {
-    //         quadrants[ix] = 45;
-    //     }
-
-    //     return quadrants;
-    // }
+    // How many pieces fit into the given angle between two hands?
+    // Returns an int between 0 and 3 inclusive.
+    //
+    private function in_angle(angle as Number) as Number {
+        return angle<=15 ? 0 : angle<=30 ? 1 : angle<=45 ? 2 : 3;
+    }
 
     // Find sectors that are large enough to fit pieces.
     // The pieces will be spread evenly around the sectors.
@@ -232,7 +201,6 @@ class Analog1View extends WatchUi.WatchFace {
         hour = hour * 5;
 
         var sectors = new Array<Integer>[3];
-        var ix = 0;
 
         // a is the minimum hand, b is the maximum hand.
         //
@@ -246,27 +214,33 @@ class Analog1View extends WatchUi.WatchFace {
             b = hour;
         }
 
+        // System.println(Lang.format("a $1$ b $2$", [a, b]));
+        var ix = 0;
+
         // How many pieces fit between the min and max hands?
+        // There will be between 0 and 3 pieces here.
+        //
+        var npieces = in_angle(b-a);
+
         // What is the angle shift to spread the pieces evenly?
         //
-        // System.println(Lang.format("a $1$ b $2$", [a, b]));
-        var npieces = ((b-a)/minAngle).toLong();
         var shift = npieces>0 ? (b-a)/(npieces+1) : -1;
         var base = ix;
-        while ((ix<3) && ((ix-base)<npieces)) {
+        while ((ix-base)<npieces) {
             sectors[ix] = a + shift*(ix-base+1);
             ix += 1;
         }
 
         // Switch hands by adding 60 to the minimum hand.
         // Repeat.
-        // Special case shift when the hands are at the same angle.
         //
         a += 60;
-        npieces = ((a-b)/minAngle).toLong();
-        shift = npieces>0 && npieces<4 ? (a-b)/(npieces+1) : minAngle;
+
+        // Place the rest of the three pieces.
+        npieces = 3 - npieces;
+        shift = npieces>0 ? (a-b)/(npieces+1) : minAngle;
         base = ix;
-        while ((ix<3) && ((ix-base)<npieces)) {
+        while ((ix-base)<npieces) {
             // mod 60.0 so sorting works.
             var t = b + shift*(ix-base+1);
             if (t>60) { t -= 60;}
