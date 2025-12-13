@@ -393,7 +393,7 @@ class Analog1View extends WatchUi.WatchFace {
     //     dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
     // }
 
-    private function drawText(dc as Dc, text, quadrant) as Void {
+    private function drawText(dc as Dc, text, quadrant, rect as Boolean) as Void {
         var angleopp = FRAC*quadrant;
         var sin = Math.sin(angleopp);
         var cos = Math.cos(angleopp);
@@ -404,7 +404,14 @@ class Analog1View extends WatchUi.WatchFace {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         var cx = centreXY[0];
         var cy = centreXY[1];
-        dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_SMALL, text, Graphics.TEXT_JUSTIFY_CENTER);
+        var x = cx+sin*(radius*0.5);
+        var y = cy-cos*(radius*0.5)-xy[1]/2.0;
+        dc.drawText(x, y, Graphics.FONT_SMALL, text, Graphics.TEXT_JUSTIFY_CENTER);
+
+        if (rect) {
+            var pad = 4;
+            dc.drawRoundedRectangle(x-xy[0]/2-pad, y-pad, xy[0]+pad*2, xy[1]+pad*2, 8);
+        }
     }
 
     // Draw the second hand as a red triangle pointing towards the centre.
@@ -472,9 +479,9 @@ class Analog1View extends WatchUi.WatchFace {
 
             var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
             var dwStr = Lang.format("$1$", [info.day_of_week]);
-            drawText(bufDc, dwStr, quadrants[0]);
+            drawText(bufDc, dwStr, quadrants[0], true);
             var dmStr = Lang.format("$1$\n$2$", [info.month, info.day]);
-            drawText(bufDc, dmStr, quadrants[1]);
+            drawText(bufDc, dmStr, quadrants[1], false);
 
             // drawDate(bufDc, quadrants[0]);
             drawBattery(bufDc, quadrants[2]);
