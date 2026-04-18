@@ -379,39 +379,19 @@ class Analog1View extends WatchUi.WatchFace {
         dc.drawLine(x4, y4, x0, y0);
     }
 
-    // private function drawDate(dc as Dc, quadrant) as Void {
-    //     var angleopp = FRAC*quadrant;
-    //     var sin = Math.sin(angleopp);
-    //     var cos = Math.cos(angleopp);
-
-    //     var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
-    //     var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
-    //     var xy = dc.getTextDimensions(dateStr, Graphics.FONT_XTINY);
-    //     dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-    //     var cx = centreXY[0];
-    //     var cy = centreXY[1];
-    //     dc.drawText(cx+sin*(radius*0.5), cy-cos*(radius*0.5)-xy[1]/2.0, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
-    // }
-
-    private function drawText(dc as Dc, text, quadrant, rect as Boolean) as Void {
+    private function drawText(dc as Dc, text, quadrant, fg as Graphics.ColorValue) as Void {
         var angleopp = FRAC*quadrant;
         var sin = Math.sin(angleopp);
         var cos = Math.cos(angleopp);
 
-        // var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
-        // var dateStr = Lang.format("$1$\n$2$ $3$", [info.day_of_week, info.month, info.day]);
         var xy = dc.getTextDimensions(text, Graphics.FONT_SMALL);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         var cx = centreXY[0];
         var cy = centreXY[1];
         var x = cx+sin*(radius*0.5);
         var y = cy-cos*(radius*0.5)-xy[1]/2.0;
-        dc.drawText(x, y, Graphics.FONT_SMALL, text, Graphics.TEXT_JUSTIFY_CENTER);
 
-        if (rect) {
-            var pad = 4;
-            dc.drawRoundedRectangle(x-xy[0]/2-pad, y-pad, xy[0]+pad*2, xy[1]+pad*2, 8);
-        }
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, y, Graphics.FONT_SMALL, text, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Draw the second hand as a red triangle pointing towards the centre.
@@ -478,10 +458,12 @@ class Analog1View extends WatchUi.WatchFace {
             var quadrants = getFreeSectors(hour, minute);
 
             var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
+
             var dwStr = Lang.format("$1$", [info.day_of_week]);
-            drawText(bufDc, dwStr, quadrants[0], true);
+            drawText(bufDc, dwStr, quadrants[0], Graphics.COLOR_WHITE);
+
             var dmStr = Lang.format("$1$\n$2$", [info.month, info.day]);
-            drawText(bufDc, dmStr, quadrants[1], false);
+            drawText(bufDc, dmStr, quadrants[1], Graphics.COLOR_BLUE);
 
             // drawDate(bufDc, quadrants[0]);
             drawBattery(bufDc, quadrants[2]);
